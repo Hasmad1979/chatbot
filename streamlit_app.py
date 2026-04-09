@@ -23,9 +23,19 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Fonction pour appeler l'API proprement
+# Remplacez votre fonction query actuelle par celle-ci
 def query(payload):
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response.json()
+    import time
+    for i in range(3): # Il va essayer 3 fois
+        response = requests.post(API_URL, headers=headers, json=payload)
+        output = response.json()
+        
+        # Si le modèle est en train de charger, on attend et on recommence
+        if isinstance(output, dict) and "estimated_time" in output:
+            time.sleep(output["estimated_time"])
+            continue
+        return output
+    return output
 
 # Zone de saisie
 if prompt := st.chat_input("Ex: Comment changer le toner ?"):
