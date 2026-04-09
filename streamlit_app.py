@@ -3,76 +3,70 @@ import requests
 import time
 
 # Configuration de l'interface
-st.set_page_config(page_title="Support MFP Expert", page_icon="🖨️")
+st.set_page_config(page_title="Expert MFP Pro", page_icon="🖨️")
 st.title("🤖 Assistant Technique MFP")
-st.markdown("Maintenance préventive et curative")
+st.markdown("Maintenance, Codes Erreurs et Consommables")
 
-# --- CONFIGURATION API ---
+# --- CONFIGURATION SÉCURISÉE ---
 HF_TOKEN = "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"
-# Utilisation de Mistral-7B (excellent pour les procédures techniques en français)
+# Modèle Mistral : Le plus performant pour le support technique en français
 API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Affichage de l'historique de discussion
+# Affichage de l'historique
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Fonction de requête robuste avec relance automatique
-def query_ai(prompt_text):
+def query_ai(user_input):
+    # Prompt ultra-précis pour forcer une réponse d'expert
     payload = {
-        "inputs": f"<s>[INST] Tu es un technicien expert en photocopieurs. Donne des instructions techniques détaillées et tape par étape pour : {prompt_text} [/INST]",
-        "parameters": {"max_new_tokens": 1000, "temperature": 0.7}
+        "inputs": f"<s>[INST] Tu es un ingénieur support technique expert en imprimantes. Réponds de manière très détaillée et technique à cette question : {user_input} [/INST]",
+        "parameters": {"max_new_tokens": 800, "temperature": 0.3}
     }
     
-    for attempt in range(3): # Tentative de reconnexion automatique (3 fois)
-        response = requests.post(API_URL, headers=headers, json=payload)
-        output = response.json()
-        
-        # Si le modèle est en train de charger
-        if isinstance(output, dict) and "estimated_time" in output:
-            time.sleep(5) # Attendre 5 secondes avant de réessayer
-            continue
-        
-        # Si on reçoit la réponse
-        if isinstance(output, list) and len(output) > 0:
-            return output[0]['generated_text'].split("[/INST]")[-1].strip()
+    # Boucle d'interactivité : On essaie jusqu'à ce que l'IA soit réveillée
+    max_retries = 10
+    for i in range(max_retries):
+        try:
+            response = requests.post(API_URL, headers=headers, json=payload)
+            output = response.json()
             
-    return "Désolé, le serveur technique est très occupé. Pouvez-vous reposer votre question ou utiliser le formulaire de panne ci-dessous ?"
+            # Cas 1 : Le modèle est en train de charger
+            if isinstance(output, dict) and "estimated_time" in output:
+                wait_time = int(output["estimated_time"])
+                with st.status(f"🚀 Initialisation du cerveau technique ({wait_time}s)..."):
+                    time.sleep(5) # On attend par tranches de 5 secondes
+                continue
+            
+            # Cas 2 : Succès, on a une réponse technique
+            if isinstance(output, list) and len(output) > 0:
+                return output[0]['generated_text'].split("[/INST]")[-1].strip()
+            
+            # Cas 3 : Autre erreur
+            return "Désolé, j'ai une difficulté technique. Pouvez-vous reformuler ?"
+            
+        except Exception:
+            time.sleep(2)
+            continue
+            
+    return "Le serveur technique met trop de temps à démarrer. Réessayez dans 30 secondes."
 
-# Logique du Chat
-if prompt := st.chat_input("Ex: Procédure pour bourrage papier J001 ?"):
+# Zone de Chat
+if prompt := st.chat_input("Posez votre question technique (ex: Code SC542 Ricoh)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Rédaction de la procédure technique..."):
+        with st.spinner("Analyse du manuel technique..."):
             answer = query_ai(prompt)
             st.markdown(answer)
             st.session_state.messages.append({"role": "assistant", "content": answer})
 
-# --- OPTION : SIGNALER UNE PANNE MATÉRIELLE (Toujours visible) ---
+# --- GARDE-FOU : SIGNALER UNE PANNE ---
 st.write("---")
-st.subheader("🆘 Problème non résolu ?")
-with st.expander("🚨 Signaler une panne matériel grave / Demander un technicien"):
-    with st.form("ticket_hotline"):
-        st.info("Utilisez ce formulaire si l'IA ne peut pas résoudre la panne à distance.")
-        col1, col2 = st.columns(2)
-        with col1:
-            serie = st.text_input("Numéro de Série (S/N)")
-            modele = st.text_input("Modèle du MFP")
-        with col2:
-            contact = st.text_input("Votre Nom / Téléphone")
-        
-        description = st.text_area("Description précise du problème ou code erreur affiché")
-        
-        envoi = st.form_submit_button("Envoyer la demande d'intervention")
-        if envoi:
-            if serie and description:
-                st.success(f"Ticket enregistré pour la machine {serie}. Un technicien vous contactera.")
-            else:
-                st.warning("Veuillez remplir le numéro de série et la description.")
+with st.exp
