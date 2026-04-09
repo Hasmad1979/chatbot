@@ -1,54 +1,58 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. Configuration de la page
-st.set_page_config(page_title="Support MFP Pro", page_icon="🖨️")
+# 1. Configuration de l'interface
+st.set_page_config(page_title="Support MFP Expert", page_icon="🖨️")
 st.title("🤖 Assistant Technique MFP")
-st.markdown("Réparation, Toner et Maintenance")
+st.markdown("Expertise technique instantanée pour photocopieurs")
 
-# 2. Configuration sécurisée de l'IA (Votre clé Gemini)
+# 2. Configuration de l'IA avec votre clé
 API_KEY = "AIzaSyDkyP6sNPfm32Zl5ayh2amyLs9GEH7BaQ8"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 3. Initialisation de la mémoire du Chat
+# 3. Gestion de la mémoire (Historique)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 4. Affichage des anciens messages
+# Affichage des messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 5. Zone de saisie et logique de réponse
-if prompt := st.chat_input("Ex: Comment changer le toner sur un Ricoh ?"):
-    # Afficher le message de l'utilisateur
+# 4. Chat Interactif
+if prompt := st.chat_input("Ex: Procédure bourrage papier J001 ?"):
+    # Affichage utilisateur
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Générer la réponse de l'expert
+    # Réponse de l'IA
     with st.chat_message("assistant"):
-        with st.spinner("Analyse technique en cours..."):
+        with st.spinner("Rédaction de la procédure..."):
             try:
-                # Instruction forcée pour obtenir une réponse d'expert
-                full_query = f"Tu es un technicien expert en imprimantes MFP. Donne des étapes claires pour : {prompt}"
-                response = model.generate_content(full_query)
+                # On force l'IA à donner une réponse technique détaillée
+                instruction = "Tu es un technicien expert en maintenance de photocopieurs. Donne une réponse technique détaillée étape par étape pour : "
+                response = model.generate_content(instruction + prompt)
                 
-                answer = response.text
-                st.markdown(answer)
-                st.session_state.messages.append({"role": "assistant", "content": answer})
+                output_text = response.text
+                st.markdown(output_text)
+                st.session_state.messages.append({"role": "assistant", "content": output_text})
             except Exception:
-                st.error("Désolé, j'ai eu un problème de connexion. Réessayez votre question.")
+                st.error("Petit souci de connexion. Veuillez cliquer sur 'Entrée' pour relancer.")
 
-# 6. Option de secours (Signalement de panne)
+# 5. Option de signalement matériel (Obligatoire)
 st.write("---")
-with st.expander("🚨 Signaler une panne matériel grave"):
+with st.expander("🆘 Signaler une panne matériel (Besoin d'un technicien)"):
     with st.form("ticket_form"):
-        sn = st.text_input("Numéro de Série (S/N)")
+        st.write("Utilisez ce formulaire si l'IA ne peut pas résoudre le problème à distance.")
+        col1, col2 = st.columns(2)
+        sn = col1.text_input("N° de Série du MFP")
+        contact = col2.text_input("Votre Contact")
         desc = st.text_area("Description précise du problème")
-        if st.form_submit_button("Envoyer à la Hotline"):
+        
+        if st.form_submit_button("Envoyer la demande"):
             if sn and desc:
                 st.success(f"Ticket enregistré pour le S/N {sn}. Un technicien vous contactera.")
             else:
-                st.warning("Veuillez remplir tous les champs.")
+                st.warning("Veuillez remplir le numéro de série et la description.")
