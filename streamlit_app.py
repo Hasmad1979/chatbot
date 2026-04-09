@@ -1,5 +1,5 @@
 import streamlit as st
-from huggingface_hub import InferenceClient
+import requests
 
 # Configuration de la page
 st.set_page_config(page_title="Support Assistant MFP", page_icon="🖨️")
@@ -7,42 +7,51 @@ st.set_page_config(page_title="Support Assistant MFP", page_icon="🖨️")
 st.title("🤖 Assistant Technique MFP")
 st.markdown("Réparation, Toner et Maintenance")
 
-# --- CONNEXION AVEC VOTRE TOKEN ---
-# Votre token est intégré ici pour l'authentification
+# --- CONFIGURATION ---
+# Votre token et l'URL du modèle (Zephyr est excellent pour le français)
 HF_TOKEN = "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"
+API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
+headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
-# Initialisation du client avec la nouvelle syntaxe recommandée
-client = InferenceClient(api_key=HF_TOKEN)
-
-# Initialisation de l'historique de discussion
+# Initialisation de l'historique
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Affichage de l'historique des messages
+# Affichage de l'historique
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Zone de saisie utilisateur
-if prompt := st.chat_input("Ex: Comment changer le toner noir ?"):
-    # Ajouter le message utilisateur à l'historique
+# Fonction pour appeler l'API proprement
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
+
+# Zone de saisie
+if prompt := st.chat_input("Ex: Comment changer le toner ?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Génération de la réponse de l'IA
     with st.chat_message("assistant"):
-        with st.spinner("L'assistant réfléchit..."):
+        with st.spinner("Recherche de la solution technique..."):
+            # Préparation de la question pour l'IA
+            system_prompt = f"<|system|>\nTu es un expert technique MFP. Aide pour les pannes, toners et pièces. Si c'est grave, propose un ticket hotline.</s>\n<|user|>\n{prompt}</s>\n<|assistant|>\n"
+            
             try:
-                # Instructions pour définir le comportement du bot
-                system_instructions = (
-                    "Tu es un expert technique spécialisé dans les imprimantes multifonctions (MFP). "
-                    "Ton but est d'aider les clients à résoudre des pannes techniques (bourrages, codes erreurs) "
-                    "et de les guider pas à pas pour changer les toners ou consommables. "
-                    "Sois poli, professionnel et clair. Si le problème semble être une panne matérielle grave "
-                    "que l'utilisateur ne peut pas réparer seul, suggère-lui d'ouvrir un ticket à la hotline "
-                    "pour demander l'intervention d'un technicien."
-                )
+                output = query({
+                    "inputs": system_prompt,
+                    "parameters": {"max_new_tokens": 500, "return_full_text": False}
+                })
                 
-                # Appel au modèle de langage (Zephyr est très performant et gratuit)
-                stream = client.chat.completions.create(
+                # Extraction de la réponse
+                if isinstance(output, list) and len(output) > 0:
+                    full_response = output[0].get('generated_text', "Désolé, je ne peux pas répondre pour le moment.")
+                else:
+                    full_response = "Le service est temporairement surchargé, réessayez dans quelques secondes."
+                
+                st.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+            
+            except Exception as e:
+                st.error("Erreur de connexion au cerveau de l'IA.")
