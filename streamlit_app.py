@@ -5,59 +5,58 @@ import google.generativeai as genai
 st.set_page_config(page_title="Support MFP Expert", page_icon="🖨️")
 st.title("🤖 Assistant Technique MFP")
 
-# --- CONNEXION IA ---
-# Votre clé est intégrée et nettoyée de tout espace invisible
-API_KEY = "AIzaSyDkyP6sNPfm32Zl5ayh2amyLs9GEH7BaQ8".strip()
+# --- CONFIGURATION API ---
+# Votre clé API Google Gemini
+API_KEY = "AIzaSyDkyP6sNPfm32Zl5ayh2amyLs9GEH7BaQ8"
 
 try:
     genai.configure(api_key=API_KEY)
+    # Utilisation du modèle Flash pour la rapidité
     model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("Problème de configuration initiale. Veuillez rafraîchir la page.")
+    st.error("Erreur de configuration. Vérifiez votre clé API.")
 
-# Gestion de l'historique pour l'interactivité
+# Initialisation de l'historique
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Affichage des bulles de chat
+# Affichage des messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# --- INTERACTION ---
-if prompt := st.chat_input("Ex: Procédure pour bourrage papier ?"):
-    # 1. Afficher le message utilisateur
+# --- CHAT INTERACTIF ---
+if prompt := st.chat_input("Ex: Comment changer le toner ?"):
+    # Ajouter le message utilisateur
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # 2. Générer la réponse technique
+    # Réponse de l'IA
     with st.chat_message("assistant"):
-        with st.spinner("Expertise en cours..."):
+        message_placeholder = st.empty()
+        with st.spinner("Expertise technique en cours..."):
             try:
-                # Consigne stricte pour forcer les détails techniques
-                context = "Tu es un technicien expert en photocopieurs. Donne des étapes précises et numérotées pour : "
-                response = model.generate_content(context + prompt)
+                # Prompt simplifié pour éviter les erreurs de syntaxe
+                full_prompt = f"Tu es un technicien expert en imprimantes. Réponds de façon précise à : {prompt}"
+                response = model.generate_content(full_prompt)
                 
                 if response.text:
-                    st.markdown(response.text)
+                    message_placeholder.markdown(response.text)
                     st.session_state.messages.append({"role": "assistant", "content": response.text})
                 else:
-                    st.warning("L'IA a généré une réponse vide. Réessayez votre question.")
+                    st.error("L'IA n'a pas pu répondre. Réessayez.")
             except Exception as e:
-                st.error("Connexion instable. Cliquez à nouveau sur 'Entrée' pour relancer la recherche.")
+                st.error("La connexion a échoué. Veuillez renvoyer votre message.")
 
-# --- FORMULAIRE TICKET (En bas de page) ---
+# --- FORMULAIRE DE TICKET (Toujours présent) ---
 st.write("---")
-with st.expander("🚨 Signaler une panne matériel grave"):
-    with st.form("form_final"):
-        st.write("Si l'IA ne peut pas résoudre la panne, ouvrez un ticket :")
-        col1, col2 = st.columns(2)
-        sn = col1.text_input("N° de Série")
-        contact = col2.text_input("Votre Contact")
-        desc = st.text_area("Description du problème")
-        if st.form_submit_button("Envoyer à la Hotline"):
+with st.expander("🚨 Signaler une panne matériel (Ouvrir un ticket)"):
+    with st.form("form_ticket"):
+        sn = st.text_input("N° de Série du MFP")
+        desc = st.text_area("Détails de la panne")
+        if st.form_submit_button("Envoyer au support"):
             if sn and desc:
-                st.success(f"Ticket enregistré pour le S/N {sn}. Un technicien va vous rappeler.")
+                st.success(f"Ticket enregistré pour le S/N {sn}.")
             else:
-                st.error("Veuillez remplir le N° de série et la description.")
+                st.warning("Veuillez remplir les champs.")
