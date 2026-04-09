@@ -1,67 +1,52 @@
 import streamlit as st
-import requests
-import time
+import google.generativeai as genai
 
-# 1. Configuration de l'interface
-st.set_page_config(page_title="Support MFP Pro", page_icon="🖨️")
+# Configuration de la page
+st.set_page_config(page_title="Support MFP Expert", page_icon="🖨️")
+
+# Style CSS pour améliorer l'interface
+st.markdown("""
+    <style>
+    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
+    .stForm { background-color: #f0f2f6; padding: 20px; border-radius: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("🤖 Assistant Technique MFP")
-st.markdown("Guides de réparation et maintenance en temps réel")
+st.caption("Maintenance, Codes Erreurs et Support Interactif")
 
-# 2. Configuration API (Votre Token est intégré)
-HF_TOKEN = "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"
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+# --- CONFIGURATION GOOGLE GEMINI ---
+# Votre clé est maintenant intégrée ici
+GOOGLE_API_KEY = "AIzaSyDkyP6sNPfm32Zl5ayh2amyLs9GEH7BaQ8"
+genai.configure(api_key=GOOGLE_API_KEY)
 
-# 3. Gestion de la mémoire du chat
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Initialisation du modèle (Gemini 1.5 Flash est le plus rapide)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Initialisation de l'historique de discussion
+if "chat" not in st.session_state:
+    st.session_state.chat = model.start_chat(history=[])
 
-# 4. Fonction pour obtenir une réponse technique
-def get_technical_help(user_query):
-    # Prompt forçant l'IA à être un expert
-    prompt = f"<s>[INST] Tu es un technicien expert en imprimantes. Donne des instructions techniques étape par étape pour : {user_query} [/INST]"
-    
-    # On essaie de contacter le serveur plusieurs fois s'il "dort"
-    for _ in range(5):
-        try:
-            response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
-            result = response.json()
-            
-            if isinstance(result, dict) and "estimated_time" in result:
-                time.sleep(5) # Attente si le modèle charge
-                continue
-                
-            if isinstance(result, list):
-                return result[0]['generated_text'].split("[/INST]")[-1].strip()
-        except:
-            continue
-    return "Le serveur technique est occupé. Réessayez la question dans 10 secondes."
+# Affichage de l'historique
+for message in st.session_state.chat.history:
+    role = "assistant" if message.role == "model" else "user"
+    with st.chat_message(role):
+        st.markdown(message.parts[0].text)
 
-# 5. Zone de saisie interactive
-if user_input := st.chat_input("Ex: Comment nettoyer le rouleau de transfert ?"):
-    st.session_state.messages.append({"role": "user", "content": user_input})
+# Zone de saisie utilisateur
+if prompt := st.chat_input("Ex: Comment résoudre l'erreur SC542 sur Ricoh ?"):
+    # Affichage du message utilisateur
     with st.chat_message("user"):
-        st.markdown(user_input)
-
+        st.markdown(prompt)
+    
+    # Génération de la réponse technique
     with st.chat_message("assistant"):
         with st.spinner("Analyse technique en cours..."):
-            ai_response = get_technical_help(user_input)
-            st.markdown(ai_response)
-            st.session_state.messages.append({"role": "assistant", "content": ai_response})
-
-# 6. Formulaire de ticket (Sécurisé)
-st.write("---")
-with st.expander("🚨 Signaler une panne matériel (Besoin d'un technicien)"):
-    with st.form("panne_form"):
-        st.write("Remplissez ce formulaire si l'IA ne peut pas résoudre le problème.")
-        sn = st.text_input("N° de Série du MFP")
-        pb = st.text_area("Description de la panne")
-        if st.form_submit_button("Envoyer à la Hotline"):
-            if sn and pb:
-                st.success(f"Ticket enregistré pour le S/N {sn}. Un technicien vous contactera.")
-            else:
-                st.error("Veuillez remplir tous les champs.")
+            try:
+                # Consigne système envoyée à chaque message pour forcer l'expertise
+                instruction = (
+                    "Tu es un ingénieur support senior expert en photocopieurs (Ricoh, Konica, HP, Canon, Sharp). "
+                    "Donne des réponses techniques très précises, étape par étape. "
+                    "Utilise des listes à puces pour les procédures. "
+                    "Si une manipulation est dangereuse (haute tension, chaleur), avertis l'utilisateur. "
+                    "Question de l'utilisateur : "
