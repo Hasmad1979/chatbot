@@ -1,52 +1,42 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Configuration de la page
+# Configuration
 st.set_page_config(page_title="Support MFP Expert", page_icon="🖨️")
-
-# Style CSS pour améliorer l'interface
-st.markdown("""
-    <style>
-    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
-    .stForm { background-color: #f0f2f6; padding: 20px; border-radius: 10px; }
-    </style>
-    """, unsafe_allow_html=True)
-
 st.title("🤖 Assistant Technique MFP")
-st.caption("Maintenance, Codes Erreurs et Support Interactif")
 
-# --- CONFIGURATION GOOGLE GEMINI ---
-# Votre clé est maintenant intégrée ici
+# Clé API
 GOOGLE_API_KEY = "AIzaSyDkyP6sNPfm32Zl5ayh2amyLs9GEH7BaQ8"
 genai.configure(api_key=GOOGLE_API_KEY)
-
-# Initialisation du modèle (Gemini 1.5 Flash est le plus rapide)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Initialisation de l'historique de discussion
+# Historique
 if "chat" not in st.session_state:
     st.session_state.chat = model.start_chat(history=[])
 
-# Affichage de l'historique
+# Affichage des messages
 for message in st.session_state.chat.history:
     role = "assistant" if message.role == "model" else "user"
     with st.chat_message(role):
         st.markdown(message.parts[0].text)
 
-# Zone de saisie utilisateur
-if prompt := st.chat_input("Ex: Comment résoudre l'erreur SC542 sur Ricoh ?"):
-    # Affichage du message utilisateur
+# Entrée utilisateur
+if prompt := st.chat_input("Posez votre question technique ici..."):
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Génération de la réponse technique
     with st.chat_message("assistant"):
-        with st.spinner("Analyse technique en cours..."):
-            try:
-                # Consigne système envoyée à chaque message pour forcer l'expertise
-                instruction = (
-                    "Tu es un ingénieur support senior expert en photocopieurs (Ricoh, Konica, HP, Canon, Sharp). "
-                    "Donne des réponses techniques très précises, étape par étape. "
-                    "Utilise des listes à puces pour les procédures. "
-                    "Si une manipulation est dangereuse (haute tension, chaleur), avertis l'utilisateur. "
-                    "Question de l'utilisateur : "
+        with st.spinner("Réflexion technique..."):
+            # Consigne simplifiée pour éviter les erreurs de syntaxe
+            sys_msg = "Tu es un technicien expert en imprimantes. Donne des étapes claires : "
+            response = st.session_state.chat.send_message(sys_msg + prompt)
+            st.markdown(response.text)
+
+# Formulaire de ticket
+st.write("---")
+with st.expander("🚨 Signaler une panne matériel"):
+    with st.form("ticket_form"):
+        sn = st.text_input("N° de Série")
+        desc = st.text_area("Description du problème")
+        if st.form_submit_button("Envoyer"):
+            st.success("Ticket enregistré !")
