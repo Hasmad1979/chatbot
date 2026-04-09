@@ -1,69 +1,50 @@
 import streamlit as st
+from huggingface_hub import InferenceClient
 
 # Configuration de la page
-st.set_page_config(page_title="Support Technique MFP", page_icon="🖨️")
+st.set_page_config(page_title="Support Assistant MFP", page_icon="🖨️")
 
-# --- BASE DE CONNAISSANCES SIMPLIFIÉE ---
-# En production, cela serait remplacé par une base de données vectorielle (RAG)
-KNOWLEDGE_BASE = {
-    "toner": "Pour changer le toner : 1. Ouvrez le capot avant. 2. Déverrouillez la cartouche vide. 3. Insérez la nouvelle. 4. Refermez.",
-    "bourrage": "Bourrage papier : Vérifiez le bac 1 et l'unité de fusion à l'arrière. Retirez doucement le papier sans le déchirer.",
-    "qualité": "Traces noires ? Nettoyez la vitre du scanner et lancez un cycle de nettoyage des têtes d'impression via le menu 'Entretien'."
-}
-
-def create_ticket():
-    st.error("🚨 Difficulté persistante détectée.")
-    with st.form("ticket_form"):
-        st.write("Veuillez remplir les informations pour l'ouverture d'un ticket Hotline :")
-        nom = st.text_input("Nom du client / Entreprise")
-        serie = st.text_input("Numéro de série du MFP")
-        desc = st.text_area("Description de la panne")
-        submit = st.form_submit_button("Envoyer le ticket au support")
-        if submit:
-            st.success(f"Ticket créé avec succès pour {nom}. Un technicien vous contactera sous 4h.")
-
-# --- INTERFACE CHAT ---
 st.title("🤖 Assistant Technique MFP")
-st.subheader("Comment puis-je vous aider aujourd'hui ?")
+st.markdown("Réparation, Toner et Maintenance")
 
+# --- CONNEXION GRATUITE ---
+# Remplacez par votre token Hugging Face (ou mettez-le dans les Secrets Streamlit)
+hf_token = "VOTRE_TOKEN_HUGGING_FACE" 
+client = InferenceClient(model="mistralai/Mistral-7B-Instruct-v0.3", token=hf_token)
+
+# Initialisation de l'historique
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.need_ticket = False
 
 # Affichage de l'historique
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Logique de réponse
-if prompt := st.chat_input("Ex: Comment changer le toner noir ?"):
+# Entrée utilisateur
+if prompt := st.chat_input("Ex: Comment changer le toner ?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    response = ""
-    prompt_lower = prompt.lower()
-
-    # Analyse des mots-clés
-    if "toner" in prompt_lower or "consommable" in prompt_lower:
-        response = KNOWLEDGE_BASE["toner"]
-    elif "bourrage" in prompt_lower or "papier" in prompt_lower:
-        response = KNOWLEDGE_BASE["bourrage"]
-    elif "code erreur" in prompt_lower or "panne" in prompt_lower:
-        response = "Je vois que vous avez une panne technique. Avez-vous vérifié les branchements et redémarré l'appareil ?"
-        st.session_state.need_ticket = True
-    else:
-        response = "Je peux vous aider pour les toners, les bourrages ou les pannes. Pouvez-vous préciser votre demande ?"
-
+    # Logique de réponse de l'IA
     with st.chat_message("assistant"):
-        st.markdown(response)
-        if st.session_state.need_ticket:
-            st.info("Si le problème persiste, je peux ouvrir un ticket pour vous.")
-            if st.button("Demander une visite technicien"):
-                st.session_state.show_form = True
-
-    st.session_state.messages.append({"role": "assistant", "content": response})
-
-# Affichage du formulaire de ticket si nécessaire
-if st.session_state.get("show_form"):
-    create_ticket()
+        # Instruction système pour guider l'IA
+        system_instructions = (
+            "Tu es un expert en maintenance d'imprimantes MFP. "
+            "Aide l'utilisateur pour les pannes, le toner et les pièces. "
+            "Si la panne est trop grave, conseille d'ouvrir un ticket hotline."
+        )
+        
+        # Appel du modèle gratuit
+        response = client.chat_completion(
+            messages=[{"role": "system", "content": system_instructions},
+                      {"role": "user", "content": prompt}],
+            max_tokens=500,
+            stream=False
+        )
+        
+        full_response = response.choices[0].message.content
+        st.markdown(full_response)
+        
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
