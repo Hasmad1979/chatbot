@@ -1,62 +1,54 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Configuration de la page
-st.set_page_config(page_title="Support MFP Expert", page_icon="🖨️")
+# 1. Configuration de la page
+st.set_page_config(page_title="Support MFP Pro", page_icon="🖨️")
 st.title("🤖 Assistant Technique MFP")
+st.markdown("Réparation, Toner et Maintenance")
 
-# --- CONFIGURATION API ---
-# Votre clé API Google Gemini
+# 2. Configuration sécurisée de l'IA (Votre clé Gemini)
 API_KEY = "AIzaSyDkyP6sNPfm32Zl5ayh2amyLs9GEH7BaQ8"
+genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-try:
-    genai.configure(api_key=API_KEY)
-    # Utilisation du modèle Flash pour la rapidité
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except Exception as e:
-    st.error("Erreur de configuration. Vérifiez votre clé API.")
-
-# Initialisation de l'historique
+# 3. Initialisation de la mémoire du Chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Affichage des messages
+# 4. Affichage des anciens messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# --- CHAT INTERACTIF ---
-if prompt := st.chat_input("Ex: Comment changer le toner ?"):
-    # Ajouter le message utilisateur
+# 5. Zone de saisie et logique de réponse
+if prompt := st.chat_input("Ex: Comment changer le toner sur un Ricoh ?"):
+    # Afficher le message de l'utilisateur
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Réponse de l'IA
+    # Générer la réponse de l'expert
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        with st.spinner("Expertise technique en cours..."):
+        with st.spinner("Analyse technique en cours..."):
             try:
-                # Prompt simplifié pour éviter les erreurs de syntaxe
-                full_prompt = f"Tu es un technicien expert en imprimantes. Réponds de façon précise à : {prompt}"
-                response = model.generate_content(full_prompt)
+                # Instruction forcée pour obtenir une réponse d'expert
+                full_query = f"Tu es un technicien expert en imprimantes MFP. Donne des étapes claires pour : {prompt}"
+                response = model.generate_content(full_query)
                 
-                if response.text:
-                    message_placeholder.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
-                else:
-                    st.error("L'IA n'a pas pu répondre. Réessayez.")
-            except Exception as e:
-                st.error("La connexion a échoué. Veuillez renvoyer votre message.")
+                answer = response.text
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+            except Exception:
+                st.error("Désolé, j'ai eu un problème de connexion. Réessayez votre question.")
 
-# --- FORMULAIRE DE TICKET (Toujours présent) ---
+# 6. Option de secours (Signalement de panne)
 st.write("---")
-with st.expander("🚨 Signaler une panne matériel (Ouvrir un ticket)"):
-    with st.form("form_ticket"):
-        sn = st.text_input("N° de Série du MFP")
-        desc = st.text_area("Détails de la panne")
-        if st.form_submit_button("Envoyer au support"):
+with st.expander("🚨 Signaler une panne matériel grave"):
+    with st.form("ticket_form"):
+        sn = st.text_input("Numéro de Série (S/N)")
+        desc = st.text_area("Description précise du problème")
+        if st.form_submit_button("Envoyer à la Hotline"):
             if sn and desc:
-                st.success(f"Ticket enregistré pour le S/N {sn}.")
+                st.success(f"Ticket enregistré pour le S/N {sn}. Un technicien vous contactera.")
             else:
-                st.warning("Veuillez remplir les champs.")
+                st.warning("Veuillez remplir tous les champs.")
